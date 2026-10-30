@@ -1,8 +1,6 @@
 {
-  "rewrites": [
-    {
-      "source": "/((?!.*\\.).*)",
-      "destination": "/index.html"
-    }
-  ]
+  "framework": null,
+  "installCommand": "npm install",
+  "buildCommand": "node -e \"require('fs').accessSync('public/index.html')\"",
+  "outputDirectory": "public"
 }
