@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
-<body>
+<body data-screen="feed">
   <section id="login-view" class="login-view">
     <form id="login-form" class="card login-card">
       <h1>🏠 我們的浪漫小屋</h1>
@@ -24,6 +24,28 @@
   </section>
 
   <section id="app-view" class="app-view" hidden>
+    <header class="phone-bar">
+      <button id="menu-toggle" class="menu-toggle" type="button" aria-expanded="false" aria-controls="phone-drawer" aria-label="開啟選單">
+        <span></span><span></span><span></span>
+      </button>
+      <div class="phone-brand">
+        <strong>0917 ♥ 1224</strong>
+        <span><span id="phone-screen-label">動態</span> · 在一起 <span id="phone-days">0</span> 天</span>
+      </div>
+    </header>
+    <div id="phone-backdrop" class="phone-backdrop"></div>
+    <nav id="phone-drawer" class="phone-drawer" aria-label="功能選單">
+      <p class="drawer-kicker">我們的小屋</p>
+      <div class="drawer-couple">
+        <div><img id="drawer-male-avatar" alt="" /><span id="drawer-male-name"></span></div>
+        <div><img id="drawer-female-avatar" alt="" /><span id="drawer-female-name"></span></div>
+      </div>
+      <button type="button" data-screen="feed" class="active">✨ 我們的動態</button>
+      <button type="button" data-screen="map">🗺️ 足跡地圖</button>
+      <button type="button" data-screen="photos">📸 照片牆</button>
+      <button type="button" data-screen="album">🖼️ 相簿管理</button>
+      <button type="button" data-screen="settings">⚙️ 秘密設定</button>
+    </nav>
     <div class="layout">
       <aside id="rail-left" class="rail"></aside>
       <main class="feed">

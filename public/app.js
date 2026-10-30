@@ -95,10 +95,13 @@ function showApp(isLoggedIn) {
     renderDays();
     ensureMap();
   }
+  syncLayout();
 }
 
 function renderDays() {
-  $('days-together').textContent = String(daysTogether());
+  const days = String(daysTogether());
+  $('days-together').textContent = days;
+  $('phone-days').textContent = days;
   const left = daysUntilAnniversary();
   $('anniversary-note').textContent = left === 0 ? '🎉 今天是我們的紀念日' : `🗓️ 下一個紀念日還有 ${left} 天`;
 }
@@ -108,8 +111,14 @@ function renderIdentity() {
   $('female-avatar').src = state.partnerAvatar;
   $('male-setting-avatar').src = state.maleAvatar;
   $('female-setting-avatar').src = state.partnerAvatar;
-  $('male-label').textContent = `${state.maleName}${state.currentUser === '男方' ? ' (我)' : ''}`;
-  $('female-label').textContent = `${state.partnerName}${state.currentUser === '女方' ? ' (我)' : ''}`;
+  const maleLabel = `${state.maleName}${state.currentUser === '男方' ? ' (我)' : ''}`;
+  const femaleLabel = `${state.partnerName}${state.currentUser === '女方' ? ' (我)' : ''}`;
+  $('male-label').textContent = maleLabel;
+  $('female-label').textContent = femaleLabel;
+  $('drawer-male-name').textContent = maleLabel;
+  $('drawer-female-name').textContent = femaleLabel;
+  $('drawer-male-avatar').src = state.maleAvatar;
+  $('drawer-female-avatar').src = state.partnerAvatar;
   $('male-chip').classList.toggle('on', state.currentUser === '男方');
   $('female-chip').classList.toggle('on', state.currentUser === '女方');
   $('male-name-input').value = state.maleName;
@@ -624,7 +633,65 @@ function bindEvents() {
     if (editPlace) openPlaceModal(state.places.find((place) => String(place.id) === editPlace.dataset.editPlace));
   });
   $('lightbox-close').addEventListener('click', () => { $('lightbox').hidden = true; });
+  $('menu-toggle').addEventListener('click', () => {
+    const open = document.body.classList.toggle('menu-open');
+    $('menu-toggle').setAttribute('aria-expanded', open ? 'true' : 'false');
+  });
+  $('phone-backdrop').addEventListener('click', closePhoneMenu);
+  $('phone-drawer').addEventListener('click', (event) => {
+    const button = event.target.closest('[data-screen]');
+    if (!button) return;
+    const screen = button.dataset.screen;
+    if (screen === 'album') {
+      closePhoneMenu();
+      renderAlbumHistory();
+      openModal('album-modal');
+      return;
+    }
+    if (screen === 'settings') {
+      closePhoneMenu();
+      openModal('settings-modal');
+      return;
+    }
+    setPhoneScreen(screen);
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closePhoneMenu();
+  });
+  window.matchMedia('(max-width: 719px)').addEventListener('change', syncLayout);
   window.addEventListener('resize', () => map && map.invalidateSize());
+  syncLayout();
+}
+
+let phoneScreen = 'feed';
+
+function closePhoneMenu() {
+  document.body.classList.remove('menu-open');
+  $('menu-toggle').setAttribute('aria-expanded', 'false');
+}
+
+function setPhoneScreen(screen) {
+  phoneScreen = screen;
+  document.body.dataset.screen = screen;
+  document.querySelectorAll('#phone-drawer [data-screen]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.screen === screen);
+  });
+  const titles = { feed: '動態', map: '足跡地圖', photos: '照片牆' };
+  if (titles[screen]) $('phone-screen-label').textContent = titles[screen];
+  closePhoneMenu();
+  window.scrollTo(0, 0);
+  if (screen === 'map' && map) setTimeout(() => map.invalidateSize(), 80);
+}
+
+function syncLayout() {
+  const phone = window.matchMedia('(max-width: 719px)').matches;
+  document.body.classList.toggle('is-phone', phone);
+  if (!phone) {
+    closePhoneMenu();
+    return;
+  }
+  document.body.dataset.screen = phoneScreen;
+  if (map) setTimeout(() => map.invalidateSize(), 80);
 }
 
 function switchAlbumTab(tab) {

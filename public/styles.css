@@ -201,6 +201,8 @@ input, textarea {
 .wall h2 { text-align: center; }
 .wall-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
+.phone-bar, .phone-backdrop, .phone-drawer { display: none; }
+
 .overlay, .lightbox {
   position: fixed;
   inset: 0;
@@ -208,7 +210,7 @@ input, textarea {
   display: grid;
   place-items: center;
   padding: 8px;
-  z-index: 20;
+  z-index: 40;
 }
 .lightbox { background: rgba(0, 0, 0, 0.92); }
 .lightbox img { width: min(92vw, 1000px); height: min(80vh, 800px); object-fit: contain; }
@@ -264,6 +266,116 @@ input, textarea {
   .composer-actions, .row-actions { flex-direction: column; align-items: stretch; }
   .composer-actions .btn, .row-actions .btn, .album { width: 100%; }
   .anniversary strong { font-size: 28px; }
+
+  .phone-bar {
+    display: flex;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px calc(10px + env(safe-area-inset-top));
+    background: rgba(255, 253, 249, 0.94);
+    border-bottom: 1px solid #ffe8d6;
+    backdrop-filter: blur(10px);
+  }
+  .menu-toggle {
+    width: 44px;
+    height: 44px;
+    border: 0;
+    border-radius: 14px;
+    background: #fff3e4;
+    display: grid;
+    gap: 5px;
+    place-content: center;
+    padding: 0;
+    cursor: pointer;
+  }
+  .menu-toggle span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 2px;
+    background: #8a6d53;
+    transition: transform 0.2s ease, opacity 0.2s ease;
+  }
+  body.menu-open .menu-toggle span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+  body.menu-open .menu-toggle span:nth-child(2) { opacity: 0; }
+  body.menu-open .menu-toggle span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+  .phone-brand { min-width: 0; flex: 1; }
+  .phone-brand strong, .phone-brand > span { display: block; }
+  .phone-brand strong { color: #7c6a58; font-size: 16px; }
+  .phone-brand > span {
+    color: #a0836b;
+    font-size: 12px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .phone-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 25;
+    background: rgba(90, 70, 60, 0.45);
+  }
+  body.menu-open .phone-backdrop { display: block; }
+  body.menu-open { overflow: hidden; }
+  .phone-drawer {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    position: fixed;
+    z-index: 30;
+    top: 0;
+    left: 0;
+    width: min(300px, 86vw);
+    height: 100dvh;
+    margin: 0;
+    padding: 22px 14px;
+    background: #fffdf9;
+    border-right: 2px solid #ffe8d6;
+    box-shadow: 12px 0 30px rgba(226, 194, 164, 0.28);
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+  }
+  body.menu-open .phone-drawer { transform: translateX(0); }
+  .drawer-kicker { margin: 4px 8px 8px; font-weight: 900; color: #ff788e; }
+  .drawer-couple { display: grid; gap: 8px; margin-bottom: 8px; }
+  .drawer-couple div {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 16px;
+    background: #fff5eb;
+    font-weight: 800;
+    color: #7c6a58;
+  }
+  .drawer-couple img { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+  .drawer-couple span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .phone-drawer button {
+    border: 0;
+    background: transparent;
+    border-radius: 14px;
+    padding: 14px 12px;
+    text-align: left;
+    font-weight: 800;
+    color: #7c6a58;
+    cursor: pointer;
+  }
+  .phone-drawer button.active { background: #ff788e; color: #fff; }
+  .people-card, #open-album, .map-card, .wall, .anniversary, #filters, #post-form, #post-list { display: none; }
+  body[data-screen="feed"] .anniversary,
+  body[data-screen="feed"] #post-form,
+  body[data-screen="feed"] #post-list { display: block; }
+  body[data-screen="feed"] #filters { display: flex; }
+  body[data-screen="map"] .map-card { display: grid; }
+  body[data-screen="map"] #map { height: min(68dvh, 520px); }
+  body[data-screen="photos"] .wall { display: block; }
+  .overlay { align-items: end; padding: 0; }
+  .modal-card { width: 100%; max-height: min(92dvh, 760px); border-radius: 22px 22px 0 0; }
 }
 
 @media (max-width: 419px) {
