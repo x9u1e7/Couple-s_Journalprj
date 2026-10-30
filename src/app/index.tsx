@@ -4,7 +4,6 @@ import {
   ActivityIndicator,
   Alert,
   Image,
-  LayoutChangeEvent,
   Modal,
   ScrollView,
   StyleSheet,
@@ -29,8 +28,11 @@ export interface PostItem {
 }
 
 export default function HomeScreen() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768; // 小於 768px 時切換為手機單欄模式
+  const { width, height } = useWindowDimensions();
+  const isMobile = width < 768;
+  const isPhone = width < 480;
+  const postImageWidth = Math.min(360, Math.max(180, width - (isMobile ? 72 : 120)));
+  const postImageHeight = Math.round(postImageWidth * 0.72);
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType>('男方');
@@ -43,6 +45,7 @@ export default function HomeScreen() {
   const [partnerAvatar, setPartnerAvatar] = useState('https://picsum.photos/100/100?random=101');
 
   const startDate = '2026-06-17';
+  const defaultCoupleId = '61de5bed-df25-456a-8308-527fdc271221';
   const [coupleId, setCoupleId] = useState<string | null>(null);
 
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
@@ -83,8 +86,9 @@ export default function HomeScreen() {
   useEffect(() => {
     if (isLoggedIn) {
       fetchPosts();
+      fetchPlaces();
     }
-  }, [maleName, partnerName, maleAvatar, partnerAvatar, isLoggedIn]);
+  }, [maleName, partnerName, maleAvatar, partnerAvatar, isLoggedIn, coupleId]);
 
   const fetchPosts = async () => {
     try {
@@ -119,6 +123,52 @@ export default function HomeScreen() {
       }
     } catch (e) {
       console.error('讀取貼文失敗：', e);
+    }
+  };
+
+  const toDbCategory = (category: 'visited' | 'wish') => (category === 'wish' ? 'wishlist' : 'visited');
+
+  const toAppCategory = (category?: string): 'visited' | 'wish' =>
+    category === 'wishlist' || category === 'wish' ? 'wish' : 'visited';
+
+  const toDbDate = (visitDate?: string) => {
+    if (!visitDate) return null;
+    const parts = visitDate.split(/[/-]/).map((part) => part.trim());
+    if (parts.length !== 3) return visitDate;
+    const [year, month, day] = parts;
+    return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+  };
+
+  const fetchPlaces = async (cId?: string | null) => {
+    const targetCoupleId = cId || coupleId || defaultCoupleId;
+    try {
+      const { data, error } = await supabase
+        .from('places')
+        .select('id, name, category, note, created_by, created_at, visit_date, image_url, lat, lng')
+        .eq('couple_id', targetCoupleId)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('讀取地點失敗：', error.message);
+        return;
+      }
+
+      setPlaces(
+        (data || []).map((item) => ({
+          id: item.id,
+          name: item.name || '',
+          category: toAppCategory(item.category),
+          note: item.note || '',
+          createdBy: item.created_by || '',
+          createdAt: item.created_at ? new Date(item.created_at).toLocaleDateString() : '',
+          visitDate: item.visit_date || undefined,
+          imageUrl: item.image_url || undefined,
+          lat: Number(item.lat) || 0,
+          lng: Number(item.lng) || 0,
+        }))
+      );
+    } catch (e) {
+      console.error('讀取地點失敗：', e);
     }
   };
 
@@ -198,7 +248,6 @@ export default function HomeScreen() {
   const [postAuthorFilter, setPostAuthorFilter] = useState<'全部' | '男生' | '女生'>('全部');
   const [selectedBatchImages, setSelectedBatchImages] = useState<string[]>([]);
   const [batchCaption, setBatchCaption] = useState('');
-  const [centerHeight, setCenterHeight] = useState<number>(800);
   const [isUploading, setIsUploading] = useState(false);
 
   const [newPostContent, setNewPostContent] = useState('');
@@ -225,7 +274,7 @@ export default function HomeScreen() {
   const daysTogether = calculateDaysTogether();
 
   const PHOTO_ITEM_HEIGHT = 280;
-  const countPerSide = Math.max(2, Math.ceil(centerHeight / PHOTO_ITEM_HEIGHT));
+  const countPerSide = Math.min(4, Math.max(2, Math.floor(height / PHOTO_ITEM_HEIGHT) || 2));
   const totalSlots = countPerSide * 2;
 
   const getRandomPhotos = useCallback((pool: typeof albumPhotos, totalNeeded: number) => {
@@ -268,13 +317,6 @@ export default function HomeScreen() {
     title: photo.title,
   }));
 
-  const handleCenterLayout = (event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    if (height > 0 && Math.abs(height - centerHeight) > 100) {
-      setCenterHeight(height);
-    }
-  };
-
   const handleLogin = async () => {
     const acc = loginAccount.trim().toLowerCase();
     const pwd = loginPassword.trim();
@@ -304,7 +346,7 @@ export default function HomeScreen() {
 
         await supabase.from('profiles').upsert({
           id: data.user.id,
-          couple_id: '61de5bed-df25-456a-8308-527fdc271221',
+          couple_id: defaultCoupleId,
           gender: role,
           nickname: acc,
         });
@@ -385,6 +427,7 @@ export default function HomeScreen() {
     setShowSettingsModal(false);
     await supabase.auth.signOut();
     setIsLoggedIn(false);
+    setPlaces([]);
     setLoginAccount('');
     setLoginPassword('');
   };
@@ -412,12 +455,14 @@ export default function HomeScreen() {
     try {
       const response = await fetch(uri);
       const fileData = await response.blob();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      const contentType = fileData.type && fileData.type.startsWith('image/') ? fileData.type : 'image/jpeg';
+      const ext = contentType.includes('png') ? 'png' : contentType.includes('webp') ? 'webp' : 'jpg';
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${ext}`;
       const filePath = `posts/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('photos')
-        .upload(filePath, fileData, { contentType: 'image/jpeg' });
+        .upload(filePath, fileData, { contentType });
 
       if (uploadError) throw uploadError;
 
@@ -437,7 +482,7 @@ export default function HomeScreen() {
 
     setIsUploading(true);
     const captionText = batchCaption.trim() || '甜蜜照片 💕';
-    const targetCoupleId = coupleId || '61de5bed-df25-456a-8308-527fdc271221';
+    const targetCoupleId = coupleId || defaultCoupleId;
 
     try {
       const uploadPromises = selectedBatchImages.map(async (uri) => {
@@ -524,7 +569,7 @@ export default function HomeScreen() {
     setIsUploading(true);
     const authorName = currentUser === '男方' ? maleName : partnerName;
     const authorAvatar = currentUser === '男方' ? maleAvatar : partnerAvatar;
-    const targetCoupleId = coupleId || '61de5bed-df25-456a-8308-527fdc271221';
+    const targetCoupleId = coupleId || defaultCoupleId;
 
     try {
       const uploadedUrls: string[] = [];
@@ -608,23 +653,72 @@ export default function HomeScreen() {
     return true;
   });
 
-  const handleSavePlace = (data: any) => {
-    if (data.id) {
-      setPlaces(places.map((p) => (p.id === data.id ? { ...p, ...data } : p)));
-    } else {
-      const newPlace: PlaceItem = {
-        id: Date.now(),
-        name: data.name,
-        category: data.category,
-        note: data.note || '記錄美好足跡',
-        createdBy: currentUser === '男方' ? maleName : partnerName,
-        createdAt: new Date().toLocaleDateString(),
-        visitDate: data.visitDate,
-        imageUrl: data.imageUrl,
-        lat: data.lat || 25.0330 + (Math.random() - 0.5) * 0.05,
-        lng: data.lng || 121.5654 + (Math.random() - 0.5) * 0.05,
-      };
-      setPlaces([newPlace, ...places]);
+  const handleSavePlace = async (data: {
+    id?: number;
+    name: string;
+    note: string;
+    category: 'visited' | 'wish';
+    visitDate: string;
+    imageUrl: string;
+    lat?: number;
+    lng?: number;
+  }) => {
+    const targetCoupleId = coupleId || defaultCoupleId;
+    let imageUrl = data.imageUrl || '';
+
+    if (imageUrl.startsWith('data:') || imageUrl.startsWith('blob:') || imageUrl.startsWith('file:')) {
+      const uploadedUrl = await uploadImageToSupabase(imageUrl);
+      if (!uploadedUrl) {
+        notify('上傳失敗 ❌', '地點照片沒有上傳成功，請再試一次');
+        return;
+      }
+      imageUrl = uploadedUrl;
+    }
+
+    const payload = {
+      name: data.name,
+      category: toDbCategory(data.category),
+      note: data.note || '記錄美好足跡',
+      visit_date: toDbDate(data.visitDate),
+      image_url: imageUrl || null,
+      lat: data.lat ?? 25.033 + (Math.random() - 0.5) * 0.05,
+      lng: data.lng ?? 121.5654 + (Math.random() - 0.5) * 0.05,
+    };
+
+    try {
+      if (data.id) {
+        const { error } = await supabase.from('places').update(payload).eq('id', data.id);
+        if (error) {
+          notify('儲存失敗 ❌', error.message);
+          return;
+        }
+      } else {
+        const { error } = await supabase.from('places').insert({
+          ...payload,
+          couple_id: targetCoupleId,
+          created_by: currentUser === '男方' ? maleName : partnerName,
+        });
+        if (error) {
+          notify('儲存失敗 ❌', error.message);
+          return;
+        }
+      }
+
+      await fetchPlaces(targetCoupleId);
+    } catch (err) {
+      console.error('儲存地點失敗：', err);
+      notify('錯誤 ⚠️', '儲存地點時發生錯誤');
+    }
+  };
+
+  const handleDeletePlace = async (id: number) => {
+    const previous = places;
+    setPlaces(places.filter((place) => place.id !== id));
+
+    const { error } = await supabase.from('places').delete().eq('id', id);
+    if (error) {
+      setPlaces(previous);
+      notify('刪除失敗 ❌', error.message);
     }
   };
 
@@ -677,7 +771,7 @@ export default function HomeScreen() {
   if (!isLoggedIn) {
     return (
       <View style={styles.loginContainer}>
-        <View style={styles.loginCard}>
+        <View style={[styles.loginCard, isPhone && styles.loginCardPhone]}>
           <Text style={styles.loginTitle}>🏠 我們的浪漫小屋</Text>
           <Text style={styles.loginSubtitle}>請登入帳號以進入專屬空間 💕</Text>
 
@@ -725,23 +819,23 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={[styles.centerColumn, isMobile && styles.centerColumnMobile]} onLayout={handleCenterLayout}>
-          <View style={styles.topHeaderCard}>
+        <View style={[styles.centerColumn, isMobile && styles.centerColumnMobile]}>
+          <View style={[styles.topHeaderCard, isPhone && styles.topHeaderCardPhone]}>
             <TouchableOpacity style={styles.settingsBtn} onPress={() => setShowSettingsModal(true)}>
               <Text style={styles.settingsBtnText}>⚙️ 設定</Text>
             </TouchableOpacity>
 
-            <View style={styles.roleGroup}>
+            <View style={[styles.roleGroup, isPhone && styles.roleGroupPhone]}>
               <View style={[styles.roleChip, currentUser === '男方' ? styles.activeMale : styles.inactiveChip]}>
                 <Image source={{ uri: maleAvatar }} style={styles.headerAvatar} />
-                <Text style={[styles.roleText, currentUser === '男方' && styles.whiteText]}>
+                <Text numberOfLines={1} style={[styles.roleText, currentUser === '男方' && styles.whiteText]}>
                   {maleName} {currentUser === '男方' && '(我)'}
                 </Text>
               </View>
 
               <View style={[styles.roleChip, currentUser === '女方' ? styles.activeFemale : styles.inactiveChip]}>
                 <Image source={{ uri: partnerAvatar }} style={styles.headerAvatar} />
-                <Text style={[styles.roleText, currentUser === '女方' && styles.whiteText]}>
+                <Text numberOfLines={1} style={[styles.roleText, currentUser === '女方' && styles.whiteText]}>
                   {partnerName} {currentUser === '女方' && '(我)'}
                 </Text>
               </View>
@@ -750,7 +844,7 @@ export default function HomeScreen() {
 
           <View style={styles.anniversaryCard}>
             <Text style={styles.anniversaryText}>
-              💖 我們已經在一起 <Text style={styles.daysText}>{daysTogether}</Text> 天囉！✨
+              💖 我們已經在一起 <Text style={[styles.daysText, isPhone && styles.daysTextPhone]}>{daysTogether}</Text> 天囉！✨
             </Text>
           </View>
 
@@ -768,7 +862,7 @@ export default function HomeScreen() {
               setEditingPlace(place);
               setShowModal(true);
             }}
-            onDeletePlace={(id) => setPlaces(places.filter((p) => p.id !== id))}
+            onDeletePlace={handleDeletePlace}
           />
 
           <View style={styles.filterRow}>
@@ -776,7 +870,7 @@ export default function HomeScreen() {
               style={[styles.filterChip, postAuthorFilter === '全部' && styles.filterChipActive]}
               onPress={() => setPostAuthorFilter('全部')}
             >
-              <Text style={[styles.filterText, postAuthorFilter === '全部' && styles.filterTextActive]}>
+              <Text numberOfLines={1} style={[styles.filterText, postAuthorFilter === '全部' && styles.filterTextActive]}>
                 ✨ 全部動態
               </Text>
             </TouchableOpacity>
@@ -786,7 +880,7 @@ export default function HomeScreen() {
               onPress={() => setPostAuthorFilter('男生')}
             >
               <Image source={{ uri: maleAvatar }} style={styles.filterAvatar} />
-              <Text style={[styles.filterText, postAuthorFilter === '男生' && styles.filterTextActive]}>
+              <Text numberOfLines={1} style={[styles.filterText, postAuthorFilter === '男生' && styles.filterTextActive]}>
                 {maleName} 發的
               </Text>
             </TouchableOpacity>
@@ -796,7 +890,7 @@ export default function HomeScreen() {
               onPress={() => setPostAuthorFilter('女生')}
             >
               <Image source={{ uri: partnerAvatar }} style={styles.filterAvatar} />
-              <Text style={[styles.filterText, postAuthorFilter === '女生' && styles.filterTextActive]}>
+              <Text numberOfLines={1} style={[styles.filterText, postAuthorFilter === '女生' && styles.filterTextActive]}>
                 {partnerName} 發的
               </Text>
             </TouchableOpacity>
@@ -847,8 +941,8 @@ export default function HomeScreen() {
               <View key={post.id} style={styles.igPostCard}>
                 <View style={styles.igHeader}>
                   <Image source={{ uri: post.avatar }} style={styles.igAvatar} />
-                  <View>
-                    <Text style={styles.igAuthor}>{post.author}</Text>
+                  <View style={styles.igAuthorBlock}>
+                    <Text numberOfLines={1} style={styles.igAuthor}>{post.author}</Text>
                     <Text style={styles.igTime}>{post.createdAt}</Text>
                   </View>
                 </View>
@@ -868,7 +962,11 @@ export default function HomeScreen() {
                           onPress={() => handleOpenPreview(img)}
                           style={styles.igPostImageWrapper}
                         >
-                          <Image source={{ uri: img }} style={styles.igPostImage} resizeMode="cover" />
+                          <Image
+                            source={{ uri: img }}
+                            style={[styles.igPostImage, { width: postImageWidth, height: postImageHeight }]}
+                            resizeMode="cover"
+                          />
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
@@ -937,7 +1035,7 @@ export default function HomeScreen() {
 
       <Modal visible={showBatchModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.batchCard}>
+          <View style={[styles.batchCard, { maxHeight: height * 0.88 }]}>
             <Text style={styles.modalTitle}>🖼️ 我們的照片牆管理</Text>
 
             <View style={styles.tabContainer}>
@@ -1064,7 +1162,7 @@ export default function HomeScreen() {
 
       <Modal visible={showSettingsModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { maxHeight: Math.min(height * 0.88, 640) }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 style={styles.modalBackBtn}
@@ -1108,14 +1206,14 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#FFFDF9' },
-  content: { padding: 16, alignItems: 'center' },
+  container: { flex: 1, backgroundColor: '#FFFDF9', width: '100%', maxWidth: '100%' },
+  content: { padding: 16, alignItems: 'center', width: '100%', maxWidth: '100%' },
   
   mainLayout: { flexDirection: 'row', width: '100%', maxWidth: 1600, gap: 20, alignItems: 'flex-start' },
   mainLayoutMobile: { flexDirection: 'column' },
-  sideColumn: { flex: 1, gap: 16 },
-  centerColumn: { flex: 2.5 },
-  centerColumnMobile: { width: '100%' },
+  sideColumn: { flex: 1, gap: 16, minWidth: 0 },
+  centerColumn: { flex: 2.5, minWidth: 0, maxWidth: '100%' },
+  centerColumnMobile: { width: '100%', maxWidth: '100%' },
 
   photoCard: {
     backgroundColor: '#FFF',
@@ -1133,9 +1231,10 @@ const styles = StyleSheet.create({
 
   mobilePhotoGrid: { width: '100%', marginTop: 20 },
   mobileSectionTitle: { fontSize: 16, fontWeight: '800', color: '#7C6A58', marginBottom: 12, textAlign: 'center' },
-  mobilePhotoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'space-between' },
+  mobilePhotoRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
   mobilePhotoCard: {
     width: '48%',
+    marginBottom: 12,
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 8,
@@ -1147,8 +1246,10 @@ const styles = StyleSheet.create({
 
   topHeaderCard: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: 8,
     backgroundColor: '#FFFFFF',
     paddingVertical: 10,
     paddingHorizontal: 16,
@@ -1160,6 +1261,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 12,
   },
+  topHeaderCardPhone: { flexDirection: 'column', alignItems: 'stretch' },
 
   settingsBtn: {
     backgroundColor: '#FFF3E4',
@@ -1168,10 +1270,13 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   settingsBtnText: { fontSize: 13, fontWeight: '800', color: '#8A6D53' },
-  roleGroup: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  roleGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', flex: 1, minWidth: 0, justifyContent: 'flex-end' },
+  roleGroupPhone: { justifyContent: 'flex-start', width: '100%', flexGrow: 0 },
   roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: '100%',
+    flexShrink: 1,
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 20,
@@ -1180,7 +1285,7 @@ const styles = StyleSheet.create({
   activeMale: { backgroundColor: '#70A1FF' },
   activeFemale: { backgroundColor: '#FF788E' },
   inactiveChip: { backgroundColor: '#FFF5EB' },
-  roleText: { fontSize: 13, fontWeight: '800', color: '#7C6A58' },
+  roleText: { fontSize: 13, fontWeight: '800', color: '#7C6A58', flexShrink: 1 },
   whiteText: { color: '#FFFFFF' },
 
   anniversaryCard: {
@@ -1197,8 +1302,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
   },
-  anniversaryText: { fontSize: 16, fontWeight: '800', color: '#803043' },
+  anniversaryText: { fontSize: 16, fontWeight: '800', color: '#803043', textAlign: 'center' },
   daysText: { fontSize: 32, fontWeight: '900', color: '#FF2A55', letterSpacing: 1 },
+  daysTextPhone: { fontSize: 26 },
 
   batchBtn: {
     backgroundColor: '#FFF0F3',
@@ -1220,10 +1326,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '900',
     letterSpacing: 0.5,
+    textAlign: 'center',
   },
 
   filterRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
     justifyContent: 'flex-start',
@@ -1232,6 +1340,8 @@ const styles = StyleSheet.create({
   filterChip: {
     flexDirection: 'row',
     alignItems: 'center',
+    maxWidth: '100%',
+    flexShrink: 1,
     backgroundColor: '#FFF3E4',
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1243,7 +1353,7 @@ const styles = StyleSheet.create({
   filterChipActiveMale: { backgroundColor: '#70A1FF', borderColor: '#70A1FF' },
   filterChipActiveFemale: { backgroundColor: '#FF788E', borderColor: '#FF788E' },
   filterAvatar: { width: 18, height: 18, borderRadius: 9, marginRight: 6 },
-  filterText: { fontSize: 12, fontWeight: '800', color: '#8A6D53' },
+  filterText: { fontSize: 12, fontWeight: '800', color: '#8A6D53', flexShrink: 1 },
   filterTextActive: { color: '#FFFFFF' },
 
   postComposerCard: {
@@ -1280,7 +1390,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   removeImgText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
-  composerActionRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  composerActionRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   addImgBtn: { backgroundColor: '#FFF3E4', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 14 },
   addImgBtnText: { color: '#8A6D53', fontSize: 12, fontWeight: '800' },
   publishBtn: { backgroundColor: '#FF788E', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14 },
@@ -1297,13 +1407,14 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: '#FFE8D6',
   },
-  igHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
+  igHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, minWidth: 0 },
   igAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
+  igAuthorBlock: { flex: 1, minWidth: 0 },
   igAuthor: { fontSize: 14, fontWeight: '800', color: '#7C6A58' },
   igTime: { fontSize: 11, color: '#A0836B' },
 
-  swiperContainer: { position: 'relative', width: '100%', marginBottom: 12 },
-  igImageSwiper: { width: '100%' },
+  swiperContainer: { position: 'relative', width: '100%', maxWidth: '100%', marginBottom: 12, overflow: 'hidden' },
+  igImageSwiper: { width: '100%', maxWidth: '100%' },
   igImageScrollContent: { paddingVertical: 4, paddingHorizontal: 2 },
   igPostImageWrapper: {
     marginRight: 12,
@@ -1313,7 +1424,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     backgroundColor: '#FAF0E6',
   },
-  igPostImage: { width: 360, height: 260 },
+  igPostImage: { borderRadius: 0 },
   imageBadge: {
     position: 'absolute',
     top: 10,
@@ -1347,7 +1458,7 @@ const styles = StyleSheet.create({
   lightboxCloseText: { color: '#FFF', fontSize: 14, fontWeight: 'bold' },
 
   modalOverlay: { flex: 1, backgroundColor: 'rgba(90, 70, 60, 0.4)', justifyContent: 'center', alignItems: 'center' },
-  modalCard: { width: 360, backgroundColor: '#FFFDF9', borderRadius: 28, padding: 24, borderWidth: 3, borderColor: '#FFE8D6' },
+  modalCard: { width: '92%', maxWidth: 420, backgroundColor: '#FFFDF9', borderRadius: 28, padding: 24, borderWidth: 3, borderColor: '#FFE8D6', overflow: 'auto' as any },
 
   modalHeader: {
     position: 'relative',
@@ -1392,7 +1503,7 @@ const styles = StyleSheet.create({
   logoutBtn: { flex: 1, backgroundColor: '#FFF3E4', paddingVertical: 10, borderRadius: 18, alignItems: 'center', borderWidth: 1, borderColor: '#FFD8BE' },
   logoutBtnText: { color: '#A0836B', fontSize: 13, fontWeight: '800' },
 
-  batchCard: { width: '90%', maxWidth: 450, backgroundColor: '#FFFDF9', borderRadius: 28, padding: 24, borderWidth: 3, borderColor: '#FFE8D6' },
+  batchCard: { width: '92%', maxWidth: 450, backgroundColor: '#FFFDF9', borderRadius: 28, padding: 24, borderWidth: 3, borderColor: '#FFE8D6', overflow: 'auto' as any },
   tabContainer: { flexDirection: 'row', backgroundColor: '#FFF3E4', borderRadius: 16, padding: 4, marginBottom: 16 },
   tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 12 },
   tabBtnActive: { backgroundColor: '#FF788E' },
@@ -1453,6 +1564,7 @@ const styles = StyleSheet.create({
 
   loginContainer: { flex: 1, backgroundColor: '#FFFDF9', justifyContent: 'center', alignItems: 'center', padding: 20 },
   loginCard: { width: '100%', maxWidth: 360, backgroundColor: '#FFFFFF', borderRadius: 28, padding: 28, borderWidth: 3, borderColor: '#FFE8D6', shadowColor: '#F2D3C1', shadowOpacity: 0.3, shadowRadius: 16 },
+  loginCardPhone: { padding: 18 },
   loginTitle: { fontSize: 22, fontWeight: '900', color: '#7C6A58', textAlign: 'center', marginBottom: 6 },
   loginSubtitle: { fontSize: 13, fontWeight: '600', color: '#A0836B', textAlign: 'center', marginBottom: 24 },
   loginInputGroup: { marginBottom: 16 },

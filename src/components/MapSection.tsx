@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { PlaceItem } from '../types';
 
 interface MapSectionProps {
@@ -15,6 +15,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onEditPlace,
   onDeletePlace,
 }) => {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 768;
   const onOpenAddModalRef = useRef(onOpenAddModal);
 
   // 確保 callback 永遠拿到最新引用，避免閉包陷阱
@@ -122,7 +124,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
         </TouchableOpacity>
       </View>
 
-      <View style={styles.mapContainer}>
+      <View style={[styles.mapContainer, { height: isMobile ? 220 : 350 }]}>
         <iframe
           title="Interactive Map"
           width="100%"
@@ -131,7 +133,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
           srcDoc={mapHtml}
         />
         <View style={styles.overlayHint}>
-          <Text style={styles.hintText}>💡 關閉新增視窗後，點擊地圖任意處即可自動帶入地名！</Text>
+          <Text style={styles.hintText} numberOfLines={2}>💡 關閉新增視窗後，點擊地圖任意處即可自動帶入地名！</Text>
         </View>
       </View>
 
@@ -139,9 +141,9 @@ export const MapSection: React.FC<MapSectionProps> = ({
         <View style={styles.placesList}>
           {places.map((place) => (
             <View key={place.id} style={styles.placeCard}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.placeName}>📍 {place.name}</Text>
-                <Text style={styles.placeNote}>{place.note}</Text>
+              <View style={{ flexGrow: 1, flexShrink: 1, flexBasis: 140, minWidth: 0 }}>
+                <Text style={styles.placeName} numberOfLines={2}>📍 {place.name}</Text>
+                <Text style={styles.placeNote} numberOfLines={2}>{place.note}</Text>
               </View>
               <View style={styles.btnRow}>
                 <TouchableOpacity style={styles.editBtn} onPress={() => onEditPlace(place)}>
@@ -161,18 +163,18 @@ export const MapSection: React.FC<MapSectionProps> = ({
 
 const styles = StyleSheet.create({
   container: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#FFE8D6' },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
-  title: { fontSize: 16, fontWeight: '800', color: '#7C6A58' },
+  header: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 },
+  title: { fontSize: 16, fontWeight: '800', color: '#7C6A58', flexShrink: 1 },
   addBtn: { backgroundColor: '#FF788E', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16 },
   addBtnText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  mapContainer: { width: '100%', height: 350, borderRadius: 20, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#FFE8D6' },
+  mapContainer: { width: '100%', borderRadius: 20, overflow: 'hidden', position: 'relative', borderWidth: 1, borderColor: '#FFE8D6' },
   overlayHint: { position: 'absolute', bottom: 10, left: 10, right: 10, backgroundColor: 'rgba(255, 255, 255, 0.92)', paddingVertical: 6, paddingHorizontal: 10, borderRadius: 12, alignItems: 'center', pointerEvents: 'none' },
   hintText: { fontSize: 11, fontWeight: '700', color: '#7C6A58' },
   placesList: { marginTop: 12, gap: 8 },
-  placeCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFFDF9', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#FFE8D6' },
+  placeCard: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8, backgroundColor: '#FFFDF9', padding: 10, borderRadius: 14, borderWidth: 1, borderColor: '#FFE8D6' },
   placeName: { fontSize: 13, fontWeight: '800', color: '#7C6A58' },
   placeNote: { fontSize: 12, color: '#A0836B' },
-  btnRow: { flexDirection: 'row', gap: 6 },
+  btnRow: { flexDirection: 'row', gap: 6, marginLeft: 'auto' },
   editBtn: { backgroundColor: '#70A1FF', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
   deleteBtn: { backgroundColor: '#FF788E', paddingVertical: 4, paddingHorizontal: 10, borderRadius: 10 },
   btnText: { color: '#FFF', fontSize: 11, fontWeight: '700' },

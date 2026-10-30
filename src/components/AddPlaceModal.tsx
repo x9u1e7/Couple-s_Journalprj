@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { PlaceItem } from '../types';
 
 interface Props {
@@ -24,6 +24,8 @@ interface Suggestion {
 }
 
 export const AddPlaceModal: React.FC<Props> = ({ initialData, onClose, onSave }) => {
+  const { width } = useWindowDimensions();
+  const isPhone = width < 480;
   const today = new Date();
   const currentYear = today.getFullYear();
   const currentMonth = today.getMonth() + 1;
@@ -148,7 +150,7 @@ export const AddPlaceModal: React.FC<Props> = ({ initialData, onClose, onSave })
 
   return (
     <View style={styles.overlay}>
-      <View style={styles.modalCard}>
+      <View style={[styles.modalCard, isPhone && styles.modalCardPhone]}>
         <Text style={styles.title}>{initialData?.id ? '✏️ 編輯足跡地點' : '📍 新增足跡地點'}</Text>
 
         <Text style={styles.label}>選擇標籤：</Text>
@@ -292,7 +294,9 @@ export const AddPlaceModal: React.FC<Props> = ({ initialData, onClose, onSave })
 };
 
 const selectStyle: React.CSSProperties = {
-  flex: 1,
+  flexGrow: 1,
+  flexBasis: 72,
+  minWidth: 72,
   backgroundColor: '#FAF4ED',
   border: '1px solid #EFE3D8',
   borderRadius: '12px',
@@ -318,16 +322,19 @@ const styles = StyleSheet.create({
     zIndex: 9999,
   },
   modalCard: {
-    width: 420,
-    maxWidth: '90%',
+    width: '92%',
+    maxWidth: 420,
     backgroundColor: '#FFF',
     borderRadius: 28,
     padding: 24,
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 20,
-    maxHeight: '90vh' as any,
-    overflow: 'visible' as any,
+    maxHeight: '85vh' as any,
+    overflow: 'auto' as any,
+  },
+  modalCardPhone: {
+    padding: 16,
   },
   title: { fontSize: 18, fontWeight: '800', marginBottom: 14, color: '#5C4D44' },
   label: { fontSize: 12, fontWeight: '700', color: '#8C7A6B', marginBottom: 8 },
@@ -361,7 +368,7 @@ const styles = StyleSheet.create({
   suggestionSub: { fontSize: 11, color: '#9C8E85', marginTop: 2 },
   fieldContainer: { marginBottom: 12 },
   fieldLabel: { fontSize: 12, fontWeight: '700', color: '#8C7A6B', marginBottom: 6 },
-  datePickerRow: { flexDirection: 'row', gap: 8 },
+  datePickerRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   pickImageBtn: { backgroundColor: '#FAF4ED', borderWidth: 1, borderColor: '#EFE3D8', borderRadius: 12, paddingVertical: 10, alignItems: 'center' },
   pickImageBtnText: { fontSize: 13, fontWeight: '600', color: '#6B5B52' },
   previewContainer: { marginTop: 8, alignItems: 'center' },
