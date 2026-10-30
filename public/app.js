@@ -443,21 +443,34 @@ async function saveAlbum() {
 }
 
 async function saveSettings() {
-  const nickname = state.currentUser === '男方' ? $('male-name-input').value.trim() : $('female-name-input').value.trim();
-  const avatar = state.currentUser === '男方' ? state.maleAvatar : state.partnerAvatar;
-  const { data, error } = await supabase.from('profiles').update({ nickname, avatar_url: avatar }).eq('id', state.userId).select('nickname, avatar_url');
-  if (error || !data?.length) return notify('儲存失敗', error?.message || '設定沒有寫進資料庫，請重新登入後再試。');
-  if (state.currentUser === '男方') {
-    state.maleName = data[0].nickname || state.maleName;
-    if (data[0].avatar_url) state.maleAvatar = data[0].avatar_url;
-  } else {
-    state.partnerName = data[0].nickname || state.partnerName;
-    if (data[0].avatar_url) state.partnerAvatar = data[0].avatar_url;
+  const button = $('save-settings');
+  button.disabled = true;
+  try {
+    const nickname = state.currentUser === '男方' ? $('male-name-input').value.trim() : $('female-name-input').value.trim();
+    let avatar = state.currentUser === '男方' ? state.maleAvatar : state.partnerAvatar;
+    if (pendingAvatar?.file && pendingAvatar.gender === state.currentUser) {
+      avatar = await uploadImage(pendingAvatar.file);
+    }
+    const { data, error } = await supabase.from('profiles').update({ nickname, avatar_url: avatar }).eq('id', state.userId).select('nickname, avatar_url');
+    if (error || !data?.length) return notify('儲存失敗', error?.message || '設定沒有寫進資料庫，請重新登入後再試。');
+    pendingAvatar = null;
+    if (state.currentUser === '男方') {
+      state.maleName = data[0].nickname || state.maleName;
+      if (data[0].avatar_url) state.maleAvatar = data[0].avatar_url;
+    } else {
+      state.partnerName = data[0].nickname || state.partnerName;
+      if (data[0].avatar_url) state.partnerAvatar = data[0].avatar_url;
+    }
+    notify('已儲存', '設定已寫進資料庫。');
+    closeModal('settings-modal');
+    renderIdentity();
+    renderPosts();
+  } catch (error) {
+    notify('儲存失敗', '頭像沒有上傳成功，設定尚未寫入。');
+    console.error(error);
+  } finally {
+    button.disabled = false;
   }
-  notify('已儲存', '設定已寫進資料庫。');
-  closeModal('settings-modal');
-  renderIdentity();
-  renderPosts();
 }
 
 async function savePlace(event) {
@@ -497,27 +510,30 @@ async function savePlace(event) {
   }
 }
 
+let pendingAvatar = null;
+
+function revertPendingAvatar() {
+  if (!pendingAvatar) return;
+  if (pendingAvatar.gender === '男方') state.maleAvatar = pendingAvatar.backup;
+  else state.partnerAvatar = pendingAvatar.backup;
+  if (pendingAvatar.preview) URL.revokeObjectURL(pendingAvatar.preview);
+  pendingAvatar = null;
+  renderIdentity();
+}
+
 async function changeOwnAvatar(file, gender) {
   if (state.currentUser !== gender) return notify('無法修改', `目前是${state.currentUser}，不能改${gender}的頭像。請用對方的帳號登入後再換。`);
   if (!state.userId) return notify('尚未登入', '請先登入再更換頭像。');
-  const hint = $(gender === '男方' ? 'male-avatar-hint' : 'female-avatar-hint');
-  hint.textContent = '儲存中';
-  try {
-    const url = await uploadImage(file);
-    const { data, error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', state.userId).select('avatar_url');
-    if (error || !data?.length || !data[0].avatar_url) {
-      hint.textContent = '更換';
-      return notify('儲存失敗', error?.message || '頭像沒有寫進資料庫。');
-    }
-    if (gender === '男方') state.maleAvatar = data[0].avatar_url;
-    else state.partnerAvatar = data[0].avatar_url;
-    renderIdentity();
-    notify('已儲存', '頭像已寫進資料庫。');
-  } catch (error) {
-    hint.textContent = '更換';
-    notify('上傳失敗', '頭像沒有上傳成功');
-    console.error(error);
-  }
+  if (pendingAvatar?.preview) URL.revokeObjectURL(pendingAvatar.preview);
+  const backup = pendingAvatar?.gender === gender
+    ? pendingAvatar.backup
+    : (gender === '男方' ? state.maleAvatar : state.partnerAvatar);
+  const preview = URL.createObjectURL(file);
+  pendingAvatar = { gender, file, backup, preview };
+  if (gender === '男方') state.maleAvatar = preview;
+  else state.partnerAvatar = preview;
+  renderIdentity();
+  $(gender === '男方' ? 'male-avatar-hint' : 'female-avatar-hint').textContent = '尚未儲存';
 }
 
 function previewFiles(files, target) {
@@ -644,7 +660,10 @@ function bindEvents() {
       $('lightbox-image').src = preview.dataset.preview;
       $('lightbox').hidden = false;
     }
-    if (close) closeModal(close.dataset.close);
+    if (close) {
+      if (close.dataset.close === 'settings-modal') revertPendingAvatar();
+      closeModal(close.dataset.close);
+    }
     if (deletePhoto) {
       const { error } = await supabase.from('album_photos').delete().eq('id', deletePhoto.dataset.deletePhoto);
       if (error) notify('刪除失敗', error.message);
