@@ -16,6 +16,11 @@ html, body {
 }
 
 img { max-width: 100%; display: block; }
+.leaflet-container img {
+  max-width: none !important;
+  max-height: none !important;
+  display: inline !important;
+}
 
 button, input, textarea { font: inherit; }
 
@@ -126,7 +131,17 @@ input, textarea {
 
 .map-card { display: grid; gap: 10px; }
 .section-head { justify-content: space-between; }
-#map { width: 100%; height: 210px; border-radius: 18px; overflow: hidden; border: 1px solid #ffe8d6; }
+#map {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  width: 100%;
+  height: 210px;
+  border-radius: 18px;
+  overflow: hidden;
+  border: 1px solid #ffe8d6;
+}
+.leaflet-container { z-index: 0; }
 .place-list { display: grid; gap: 8px; }
 .place-item {
   display: flex;
@@ -210,7 +225,7 @@ input, textarea {
   display: grid;
   place-items: center;
   padding: 8px;
-  z-index: 40;
+  z-index: 1000;
 }
 .lightbox { background: rgba(0, 0, 0, 0.92); }
 .lightbox img { width: min(92vw, 1000px); height: min(80vh, 800px); object-fit: contain; }
