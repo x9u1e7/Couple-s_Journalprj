@@ -16,7 +16,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
   onDeletePlace,
 }) => {
   const { width } = useWindowDimensions();
-  const isMobile = width < 768;
+  const isCompact = width < 720;
+  const mapHeight = width < 360 ? 168 : width < 720 ? 210 : width < 1080 ? 280 : 350;
   const onOpenAddModalRef = useRef(onOpenAddModal);
 
   // 確保 callback 永遠拿到最新引用，避免閉包陷阱
@@ -116,7 +117,7 @@ export const MapSection: React.FC<MapSectionProps> = ({
   `;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isCompact && styles.containerCompact]}>
       <View style={styles.header}>
         <Text style={styles.title}>🗺️ 我們的足跡地圖</Text>
         <TouchableOpacity style={styles.addBtn} onPress={() => onOpenAddModal()}>
@@ -124,12 +125,12 @@ export const MapSection: React.FC<MapSectionProps> = ({
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.mapContainer, { height: isMobile ? 220 : 350 }]}>
+      <View style={[styles.mapContainer, { height: mapHeight }]}>
         <iframe
           title="Interactive Map"
           width="100%"
           height="100%"
-          style={{ border: 0 }}
+          style={{ border: 0, width: '100%', maxWidth: '100%', display: 'block' }}
           srcDoc={mapHtml}
         />
         <View style={styles.overlayHint}>
@@ -162,7 +163,8 @@ export const MapSection: React.FC<MapSectionProps> = ({
 };
 
 const styles = StyleSheet.create({
-  container: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#FFE8D6' },
+  container: { backgroundColor: '#FFFFFF', borderRadius: 24, padding: 16, marginBottom: 16, borderWidth: 2, borderColor: '#FFE8D6', width: '100%', maxWidth: '100%', minWidth: 0, alignSelf: 'stretch' },
+  containerCompact: { padding: 10, borderRadius: 18 },
   header: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 12 },
   title: { fontSize: 16, fontWeight: '800', color: '#7C6A58', flexShrink: 1 },
   addBtn: { backgroundColor: '#FF788E', paddingVertical: 6, paddingHorizontal: 14, borderRadius: 16 },

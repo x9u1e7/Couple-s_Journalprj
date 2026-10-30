@@ -10,6 +10,7 @@ export default function RootLayout() {
     <>
       <Head>
         <title>{'0917&1224'}</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
         {/* 多重宣告 icon 類型，強制覆蓋各種瀏覽器的預設快取 */}
         <link rel="icon" type="image/svg+xml" href={`${heartSvg}#${version}`} />
         <link rel="shortcut icon" href={`${heartSvg}#${version}`} />

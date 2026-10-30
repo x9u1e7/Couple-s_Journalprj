@@ -150,7 +150,7 @@ export const AddPlaceModal: React.FC<Props> = ({ initialData, onClose, onSave })
 
   return (
     <View style={styles.overlay}>
-      <View style={[styles.modalCard, isPhone && styles.modalCardPhone]}>
+      <View style={[styles.modalCard, { width: Math.max(260, Math.min(420, width - 16)), padding: isPhone ? 14 : 24 }]}>
         <Text style={styles.title}>{initialData?.id ? '✏️ 編輯足跡地點' : '📍 新增足跡地點'}</Text>
 
         <Text style={styles.label}>選擇標籤：</Text>

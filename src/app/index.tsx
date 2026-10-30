@@ -29,10 +29,17 @@ export interface PostItem {
 
 export default function HomeScreen() {
   const { width, height } = useWindowDimensions();
-  const isMobile = width < 768;
-  const isPhone = width < 480;
-  const postImageWidth = Math.min(360, Math.max(180, width - (isMobile ? 72 : 120)));
-  const postImageHeight = Math.round(postImageWidth * 0.72);
+  const showSides = width >= 1080;
+  const isCompact = width < 720;
+  const isNarrow = width < 400;
+  const pagePad = isNarrow ? 10 : isCompact ? 12 : 20;
+  const [feedWidth, setFeedWidth] = useState(0);
+  const estimatedFeed = showSides ? Math.min(width * 0.56, 760) : width - pagePad * 2;
+  const postImageWidth = Math.max(140, Math.min(520, (feedWidth || estimatedFeed) - (isCompact ? 36 : 44)));
+  const postImageHeight = Math.round(postImageWidth * 0.68);
+  const modalWidth = Math.max(260, Math.min(420, width - 16));
+  const batchWidth = Math.max(260, Math.min(460, width - 16));
+  const cardPad = isNarrow ? 14 : 20;
 
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<UserType>('男方');
@@ -58,6 +65,22 @@ export default function HomeScreen() {
       Alert.alert(title, msg);
     }
   };
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const html = document.documentElement;
+    const body = document.body;
+    const previousHtml = html.style.overflowX;
+    const previousBody = body.style.overflowX;
+    html.style.overflowX = 'hidden';
+    body.style.overflowX = 'hidden';
+    html.style.maxWidth = '100%';
+    body.style.maxWidth = '100%';
+    return () => {
+      html.style.overflowX = previousHtml;
+      body.style.overflowX = previousBody;
+    };
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -272,6 +295,17 @@ export default function HomeScreen() {
   };
 
   const daysTogether = calculateDaysTogether();
+
+  const daysUntilAnniversary = (() => {
+    const start = new Date(startDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    if (isNaN(start.getTime())) return 0;
+    const next = new Date(today.getFullYear(), start.getMonth(), start.getDate());
+    next.setHours(0, 0, 0, 0);
+    if (next.getTime() < today.getTime()) next.setFullYear(next.getFullYear() + 1);
+    return Math.round((next.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  })();
 
   const PHOTO_ITEM_HEIGHT = 280;
   const countPerSide = Math.min(4, Math.max(2, Math.floor(height / PHOTO_ITEM_HEIGHT) || 2));
@@ -771,7 +805,7 @@ export default function HomeScreen() {
   if (!isLoggedIn) {
     return (
       <View style={styles.loginContainer}>
-        <View style={[styles.loginCard, isPhone && styles.loginCardPhone]}>
+        <View style={[styles.loginCard, { width: '100%', maxWidth: modalWidth, padding: cardPad }]}>
           <Text style={styles.loginTitle}>🏠 我們的浪漫小屋</Text>
           <Text style={styles.loginSubtitle}>請登入帳號以進入專屬空間 💕</Text>
 
@@ -806,9 +840,9 @@ export default function HomeScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={[styles.mainLayout, isMobile && styles.mainLayoutMobile]}>
-        {!isMobile && (
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { padding: pagePad }]}>
+      <View style={[styles.mainLayout, !showSides && styles.mainLayoutMobile]}>
+        {showSides && (
           <View style={styles.sideColumn}>
             {dynamicLeftPhotos.map((photo) => (
               <TouchableOpacity key={photo.id} activeOpacity={0.9} onPress={() => handleOpenPreview(photo.url)} style={styles.photoCard}>
@@ -819,21 +853,27 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View style={[styles.centerColumn, isMobile && styles.centerColumnMobile]}>
-          <View style={[styles.topHeaderCard, isPhone && styles.topHeaderCardPhone]}>
+        <View
+          style={[styles.centerColumn, !showSides && styles.centerColumnMobile]}
+          onLayout={(event) => {
+            const next = Math.floor(event.nativeEvent.layout.width);
+            setFeedWidth((current) => (Math.abs(current - next) > 1 ? next : current));
+          }}
+        >
+          <View style={[styles.topHeaderCard, isCompact && styles.topHeaderCardPhone]}>
             <TouchableOpacity style={styles.settingsBtn} onPress={() => setShowSettingsModal(true)}>
               <Text style={styles.settingsBtnText}>⚙️ 設定</Text>
             </TouchableOpacity>
 
-            <View style={[styles.roleGroup, isPhone && styles.roleGroupPhone]}>
-              <View style={[styles.roleChip, currentUser === '男方' ? styles.activeMale : styles.inactiveChip]}>
+            <View style={[styles.roleGroup, isCompact && styles.roleGroupPhone]}>
+              <View style={[styles.roleChip, isCompact && styles.roleChipFull, currentUser === '男方' ? styles.activeMale : styles.inactiveChip]}>
                 <Image source={{ uri: maleAvatar }} style={styles.headerAvatar} />
                 <Text numberOfLines={1} style={[styles.roleText, currentUser === '男方' && styles.whiteText]}>
                   {maleName} {currentUser === '男方' && '(我)'}
                 </Text>
               </View>
 
-              <View style={[styles.roleChip, currentUser === '女方' ? styles.activeFemale : styles.inactiveChip]}>
+              <View style={[styles.roleChip, isCompact && styles.roleChipFull, currentUser === '女方' ? styles.activeFemale : styles.inactiveChip]}>
                 <Image source={{ uri: partnerAvatar }} style={styles.headerAvatar} />
                 <Text numberOfLines={1} style={[styles.roleText, currentUser === '女方' && styles.whiteText]}>
                   {partnerName} {currentUser === '女方' && '(我)'}
@@ -844,12 +884,15 @@ export default function HomeScreen() {
 
           <View style={styles.anniversaryCard}>
             <Text style={styles.anniversaryText}>
-              💖 我們已經在一起 <Text style={[styles.daysText, isPhone && styles.daysTextPhone]}>{daysTogether}</Text> 天囉！✨
+              💖 我們已經在一起 <Text style={[styles.daysText, isCompact && styles.daysTextPhone, isNarrow && styles.daysTextNarrow]}>{daysTogether}</Text> 天囉！✨
+            </Text>
+            <Text style={styles.countdownText}>
+              {daysUntilAnniversary === 0 ? '🎉 今天是我們的紀念日' : `🗓️ 下一個紀念日還有 ${daysUntilAnniversary} 天`}
             </Text>
           </View>
 
           <TouchableOpacity style={styles.batchBtn} onPress={() => setShowBatchModal(true)}>
-            <Text style={styles.batchBtnText}>📸 相簿管理 (新增 / 查看 / 刪除照片)</Text>
+            <Text style={[styles.batchBtnText, isNarrow && styles.batchBtnTextNarrow]}>📸 相簿管理 (新增 / 查看 / 刪除照片)</Text>
           </TouchableOpacity>
 
           <MapSection
@@ -922,11 +965,11 @@ export default function HomeScreen() {
               </ScrollView>
             )}
 
-            <View style={styles.composerActionRow}>
-              <TouchableOpacity style={styles.addImgBtn} onPress={pickPostImages} disabled={isUploading}>
+            <View style={[styles.composerActionRow, isNarrow && styles.composerActionStack]}>
+              <TouchableOpacity style={[styles.addImgBtn, isNarrow && styles.fullWidthBtn]} onPress={pickPostImages} disabled={isUploading}>
                 <Text style={styles.addImgBtnText}>📷 選擇照片 (多張)</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={[styles.publishBtn, isUploading && styles.disabledBtn]} onPress={handleCreatePost} disabled={isUploading}>
+              <TouchableOpacity style={[styles.publishBtn, isNarrow && styles.fullWidthBtn, isUploading && styles.disabledBtn]} onPress={handleCreatePost} disabled={isUploading}>
                 {isUploading ? <ActivityIndicator color="#FFF" size="small" /> : <Text style={styles.publishBtnText}>發布動態 ✨</Text>}
               </TouchableOpacity>
             </View>
@@ -949,6 +992,15 @@ export default function HomeScreen() {
 
                 {post.imageUrls && post.imageUrls.length > 0 && (
                   <View style={styles.swiperContainer}>
+                    {post.imageUrls.length === 1 ? (
+                      <TouchableOpacity activeOpacity={0.9} onPress={() => handleOpenPreview(post.imageUrls[0])}>
+                        <Image
+                          source={{ uri: post.imageUrls[0] }}
+                          style={[styles.igPostImage, { width: '100%', height: postImageHeight }]}
+                          resizeMode="cover"
+                        />
+                      </TouchableOpacity>
+                    ) : (
                     <ScrollView
                       horizontal
                       showsHorizontalScrollIndicator={false}
@@ -970,6 +1022,7 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                       ))}
                     </ScrollView>
+                    )}
                     {post.imageUrls.length > 1 && (
                       <View style={styles.imageBadge}>
                         <Text style={styles.imageBadgeText}>多圖 ↔ 滑動 (點擊放大)</Text>
@@ -984,7 +1037,7 @@ export default function HomeScreen() {
           )}
         </View>
 
-        {!isMobile && (
+        {showSides && (
           <View style={styles.sideColumn}>
             {dynamicRightPhotos.map((photo) => (
               <TouchableOpacity key={photo.id} activeOpacity={0.9} onPress={() => handleOpenPreview(photo.url)} style={styles.photoCard}>
@@ -995,15 +1048,17 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {isMobile && (
+        {!showSides && (
           <View style={styles.mobilePhotoGrid}>
             <Text style={styles.mobileSectionTitle}>📸 我們的甜蜜照片牆</Text>
             <View style={styles.mobilePhotoRow}>
               {[...dynamicLeftPhotos, ...dynamicRightPhotos].map((photo) => (
-                <TouchableOpacity key={photo.id} activeOpacity={0.9} onPress={() => handleOpenPreview(photo.url)} style={styles.mobilePhotoCard}>
-                  <Image source={{ uri: photo.url }} style={styles.mobilePhotoImage} />
-                  <Text style={styles.photoTitle} numberOfLines={1}>{photo.title}</Text>
-                </TouchableOpacity>
+                <View key={photo.id} style={[styles.mobilePhotoSlot, { width: width < 560 ? '50%' : '33.33%' }]}>
+                  <TouchableOpacity activeOpacity={0.9} onPress={() => handleOpenPreview(photo.url)} style={styles.mobilePhotoCard}>
+                    <Image source={{ uri: photo.url }} style={styles.mobilePhotoImage} />
+                    <Text style={styles.photoTitle} numberOfLines={1}>{photo.title}</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
             </View>
           </View>
@@ -1035,7 +1090,7 @@ export default function HomeScreen() {
 
       <Modal visible={showBatchModal} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={[styles.batchCard, { maxHeight: height * 0.88 }]}>
+          <View style={[styles.batchCard, { width: batchWidth, maxWidth: '100%', maxHeight: height * 0.88, padding: cardPad }]}>
             <Text style={styles.modalTitle}>🖼️ 我們的照片牆管理</Text>
 
             <View style={styles.tabContainer}>
@@ -1043,13 +1098,13 @@ export default function HomeScreen() {
                 style={[styles.tabBtn, batchTab === 'upload' && styles.tabBtnActive]}
                 onPress={() => setBatchTab('upload')}
               >
-                <Text style={[styles.tabText, batchTab === 'upload' && styles.tabTextActive]}>➕ 上傳新照片</Text>
+                <Text numberOfLines={2} style={[styles.tabText, isNarrow && styles.tabTextNarrow, batchTab === 'upload' && styles.tabTextActive]}>➕ 上傳新照片</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.tabBtn, batchTab === 'history' && styles.tabBtnActive]}
                 onPress={() => setBatchTab('history')}
               >
-                <Text style={[styles.tabText, batchTab === 'history' && styles.tabTextActive]}>
+                <Text numberOfLines={2} style={[styles.tabText, isNarrow && styles.tabTextNarrow, batchTab === 'history' && styles.tabTextActive]}>
                   🖼️ 歷史相簿 ({albumPhotos.length})
                 </Text>
               </TouchableOpacity>
@@ -1116,14 +1171,14 @@ export default function HomeScreen() {
                 </View>
               </View>
             ) : (
-              <View style={{ height: 380, justifyContent: 'space-between' }}>
+              <View style={{ height: Math.min(380, height * 0.46), justifyContent: 'space-between' }}>
                 <ScrollView 
                   style={{ flex: 1 }} 
                   contentContainerStyle={styles.historyGrid}
                   showsVerticalScrollIndicator={true}
                 >
                   {albumPhotos.map((photo, idx) => (
-                    <View key={photo.id || idx} style={styles.historyItem}>
+                    <View key={photo.id || idx} style={[styles.historyItem, { width: width < 420 ? '50%' : '33.33%' }]}>
                       <TouchableOpacity 
                         style={styles.historyImageClickable} 
                         activeOpacity={0.8}
@@ -1162,7 +1217,7 @@ export default function HomeScreen() {
 
       <Modal visible={showSettingsModal} transparent animationType="fade">
         <View style={styles.modalOverlay}>
-          <View style={[styles.modalCard, { maxHeight: Math.min(height * 0.88, 640) }]}>
+          <View style={[styles.modalCard, { width: modalWidth, maxWidth: '100%', maxHeight: Math.min(height * 0.9, 640), padding: cardPad }]}>
             <View style={styles.modalHeader}>
               <TouchableOpacity
                 style={styles.modalBackBtn}
@@ -1209,11 +1264,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#FFFDF9', width: '100%', maxWidth: '100%' },
   content: { padding: 16, alignItems: 'center', width: '100%', maxWidth: '100%' },
   
-  mainLayout: { flexDirection: 'row', width: '100%', maxWidth: 1600, gap: 20, alignItems: 'flex-start' },
-  mainLayoutMobile: { flexDirection: 'column' },
-  sideColumn: { flex: 1, gap: 16, minWidth: 0 },
+  mainLayout: { flexDirection: 'row', width: '100%', maxWidth: 1600, minWidth: 0, gap: 16, alignItems: 'flex-start', alignSelf: 'stretch' },
+  mainLayoutMobile: { flexDirection: 'column', alignItems: 'stretch' },
+  sideColumn: { flex: 1, gap: 16, minWidth: 0, maxWidth: 280 },
   centerColumn: { flex: 2.5, minWidth: 0, maxWidth: '100%' },
-  centerColumnMobile: { width: '100%', maxWidth: '100%' },
+  centerColumnMobile: { width: '100%', maxWidth: '100%', flexGrow: 0, flexShrink: 0, flexBasis: 'auto' },
 
   photoCard: {
     backgroundColor: '#FFF',
@@ -1231,10 +1286,10 @@ const styles = StyleSheet.create({
 
   mobilePhotoGrid: { width: '100%', marginTop: 20 },
   mobileSectionTitle: { fontSize: 16, fontWeight: '800', color: '#7C6A58', marginBottom: 12, textAlign: 'center' },
-  mobilePhotoRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+  mobilePhotoRow: { flexDirection: 'row', flexWrap: 'wrap', width: '100%' },
+  mobilePhotoSlot: { padding: 6, boxSizing: 'border-box' as any },
   mobilePhotoCard: {
-    width: '48%',
-    marginBottom: 12,
+    width: '100%',
     backgroundColor: '#FFF',
     borderRadius: 16,
     padding: 8,
@@ -1271,7 +1326,8 @@ const styles = StyleSheet.create({
   },
   settingsBtnText: { fontSize: 13, fontWeight: '800', color: '#8A6D53' },
   roleGroup: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center', flex: 1, minWidth: 0, justifyContent: 'flex-end' },
-  roleGroupPhone: { justifyContent: 'flex-start', width: '100%', flexGrow: 0 },
+  roleGroupPhone: { flexDirection: 'column', flexWrap: 'nowrap', alignItems: 'stretch', justifyContent: 'flex-start', width: '100%', flexGrow: 0 },
+  roleChipFull: { width: '100%', maxWidth: '100%', alignSelf: 'stretch' },
   roleChip: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1292,7 +1348,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFF0F3',
     borderRadius: 24,
     paddingVertical: 14,
-    paddingHorizontal: 24,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
@@ -1304,7 +1360,9 @@ const styles = StyleSheet.create({
   },
   anniversaryText: { fontSize: 16, fontWeight: '800', color: '#803043', textAlign: 'center' },
   daysText: { fontSize: 32, fontWeight: '900', color: '#FF2A55', letterSpacing: 1 },
-  daysTextPhone: { fontSize: 26 },
+  daysTextPhone: { fontSize: 28 },
+  daysTextNarrow: { fontSize: 22 },
+  countdownText: { marginTop: 4, fontSize: 13, fontWeight: '700', color: '#A0566A', textAlign: 'center' },
 
   batchBtn: {
     backgroundColor: '#FFF0F3',
@@ -1328,12 +1386,15 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     textAlign: 'center',
   },
+  batchBtnTextNarrow: { fontSize: 13, letterSpacing: 0 },
 
   filterRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
     marginBottom: 12,
+    width: '100%',
+    maxWidth: '100%',
     justifyContent: 'flex-start',
     alignItems: 'center',
   },
@@ -1363,6 +1424,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#FFE8D6',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
   },
   composerInput: {
     backgroundColor: '#FFFDF9',
@@ -1375,7 +1439,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     marginBottom: 12,
   },
-  previewImageRow: { flexDirection: 'row', marginBottom: 12 },
+  previewImageRow: { width: '100%', maxWidth: '100%', marginBottom: 12 },
   composerImgWrapper: { marginRight: 8, position: 'relative' },
   composerPreviewImg: { width: 70, height: 70, borderRadius: 10 },
   removeImgBtn: {
@@ -1391,6 +1455,8 @@ const styles = StyleSheet.create({
   },
   removeImgText: { color: '#FFF', fontSize: 10, fontWeight: 'bold' },
   composerActionRow: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
+  composerActionStack: { flexDirection: 'column', alignItems: 'stretch' },
+  fullWidthBtn: { width: '100%', alignItems: 'center' },
   addImgBtn: { backgroundColor: '#FFF3E4', paddingVertical: 8, paddingHorizontal: 14, borderRadius: 14 },
   addImgBtnText: { color: '#8A6D53', fontSize: 12, fontWeight: '800' },
   publishBtn: { backgroundColor: '#FF788E', paddingVertical: 8, paddingHorizontal: 16, borderRadius: 14 },
@@ -1406,6 +1472,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#FFE8D6',
+    width: '100%',
+    maxWidth: '100%',
+    minWidth: 0,
+    overflow: 'hidden',
   },
   igHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, minWidth: 0 },
   igAvatar: { width: 36, height: 36, borderRadius: 18, marginRight: 10 },
@@ -1479,7 +1549,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: '#8A6D53',
   },
-  modalTitle: { fontSize: 18, fontWeight: '900', color: '#7C6A58', textAlign: 'center' },
+  modalTitle: { fontSize: 18, fontWeight: '900', color: '#7C6A58', textAlign: 'center', paddingHorizontal: 56 },
 
   settingItem: { marginBottom: 14 },
   settingLabel: { fontSize: 13, fontWeight: '800', color: '#8A6D53', marginBottom: 10 },
@@ -1505,9 +1575,10 @@ const styles = StyleSheet.create({
 
   batchCard: { width: '92%', maxWidth: 450, backgroundColor: '#FFFDF9', borderRadius: 28, padding: 24, borderWidth: 3, borderColor: '#FFE8D6', overflow: 'auto' as any },
   tabContainer: { flexDirection: 'row', backgroundColor: '#FFF3E4', borderRadius: 16, padding: 4, marginBottom: 16 },
-  tabBtn: { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 12 },
+  tabBtn: { flex: 1, minWidth: 0, paddingVertical: 8, paddingHorizontal: 4, alignItems: 'center', borderRadius: 12 },
   tabBtnActive: { backgroundColor: '#FF788E' },
-  tabText: { fontSize: 13, fontWeight: '800', color: '#8A6D53' },
+  tabText: { fontSize: 13, fontWeight: '800', color: '#8A6D53', textAlign: 'center' },
+  tabTextNarrow: { fontSize: 11 },
   tabTextActive: { color: '#FFF' },
 
   pickPhotoBtn: { backgroundColor: '#FFF3E4', paddingVertical: 12, borderRadius: 16, alignItems: 'center', marginBottom: 14, borderWidth: 1.5, borderColor: '#FFD8BE' },
@@ -1528,17 +1599,15 @@ const styles = StyleSheet.create({
   historyGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
-    justifyContent: 'flex-start',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    width: '100%',
+    paddingVertical: 4,
   },
   historyItem: {
-    width: '30%',
+    padding: 4,
+    boxSizing: 'border-box' as any,
     position: 'relative',
     backgroundColor: '#FFF',
     borderRadius: 12,
-    padding: 6,
     borderWidth: 1,
     borderColor: '#FFE8D6',
   },
