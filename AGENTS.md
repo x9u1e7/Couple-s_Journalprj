@@ -1,3 +1,3 @@
-# Expo HAS CHANGED
+# Node.js
 
-Read the exact versioned docs at https://docs.expo.dev/versions/v57.0.0/ before writing any code.
+This project is an Express site. The server is `server.js`, and the pages live in `public/`. Do not add Expo or React Native.
