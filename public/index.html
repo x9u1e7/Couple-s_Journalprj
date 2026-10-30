@@ -4,22 +4,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>0917&amp;1224</title>
-  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E❤️%3C/text%3E%3C/svg%3E" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%23ff788e'/%3E%3C/svg%3E" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="/styles.css" />
 </head>
 <body data-screen="feed">
   <section id="login-view" class="login-view">
     <form id="login-form" class="card login-card">
-      <h1>🏠 我們的浪漫小屋</h1>
-      <p class="muted">請登入帳號以進入專屬空間 💕</p>
-      <label>👤 帳號
-        <input id="login-account" name="account" autocomplete="username" placeholder="例如: mengxueho0917" />
+      <h1>我們的浪漫小屋</h1>
+      <p class="muted">請登入帳號以進入專屬空間</p>
+      <label>帳號
+        <input id="login-account" name="account" autocomplete="username" placeholder="例如 mengxueho0917" />
       </label>
-      <label>🔒 密碼
+      <label>密碼
         <input id="login-password" name="password" type="password" autocomplete="current-password" placeholder="請輸入密碼" />
       </label>
-      <button class="btn primary" type="submit">登入小屋 ✨</button>
+      <button class="btn primary" type="submit">登入</button>
     </form>
   </section>
 
@@ -29,7 +29,7 @@
         <span></span><span></span><span></span>
       </button>
       <div class="phone-brand">
-        <strong>0917 ♥ 1224</strong>
+        <strong>0917 &amp; 1224</strong>
         <span><span id="phone-screen-label">動態</span> · 在一起 <span id="phone-days">0</span> 天</span>
       </div>
     </header>
@@ -40,17 +40,17 @@
         <div><img id="drawer-male-avatar" alt="" /><span id="drawer-male-name"></span></div>
         <div><img id="drawer-female-avatar" alt="" /><span id="drawer-female-name"></span></div>
       </div>
-      <button type="button" data-screen="feed" class="active">✨ 我們的動態</button>
-      <button type="button" data-screen="map">🗺️ 足跡地圖</button>
-      <button type="button" data-screen="photos">📸 照片牆</button>
-      <button type="button" data-screen="album">🖼️ 相簿管理</button>
-      <button type="button" data-screen="settings">⚙️ 秘密設定</button>
+      <button type="button" data-screen="feed" class="active">動態</button>
+      <button type="button" data-screen="map">地圖</button>
+      <button type="button" data-screen="photos">照片牆</button>
+      <button type="button" data-screen="album">相簿</button>
+      <button type="button" data-screen="settings">設定</button>
     </nav>
     <div class="layout">
       <aside id="rail-left" class="rail"></aside>
       <main class="feed">
         <header class="card people-card">
-          <button id="open-settings" class="btn soft" type="button">⚙️ 設定</button>
+          <button id="open-settings" class="btn soft" type="button">設定</button>
           <div class="people">
             <div id="male-chip" class="name-chip male">
               <img id="male-avatar" alt="" />
@@ -64,24 +64,24 @@
         </header>
 
         <section class="card anniversary">
-          <p>💖 我們已經在一起 <strong id="days-together">0</strong> 天囉！✨</p>
+          <p>我們已經在一起 <strong id="days-together">0</strong> 天</p>
           <p id="anniversary-note" class="countdown"></p>
         </section>
 
-        <button id="open-album" class="btn album" type="button">📸 相簿管理 (新增 / 查看 / 刪除照片)</button>
+        <button id="open-album" class="btn album" type="button">相簿管理</button>
 
         <section class="card map-card">
           <div class="section-head">
-            <h2>🗺️ 我們的足跡地圖</h2>
-            <button id="open-place" class="btn primary small" type="button">+ 手動打卡</button>
+            <h2>足跡地圖</h2>
+            <button id="open-place" class="btn primary small" type="button">手動打卡</button>
           </div>
           <div id="map"></div>
-          <p class="hint">💡 點擊地圖任意處即可帶入地名</p>
+          <p class="hint">點擊地圖即可帶入地名</p>
           <div id="place-list" class="place-list"></div>
         </section>
 
         <div class="filters" id="filters">
-          <button type="button" data-filter="全部" class="chip active">✨ 全部動態</button>
+          <button type="button" data-filter="全部" class="chip active">全部動態</button>
           <button type="button" data-filter="男生" class="chip" id="filter-male"></button>
           <button type="button" data-filter="女生" class="chip" id="filter-female"></button>
         </div>
@@ -91,10 +91,10 @@
           <div id="post-preview" class="preview-row"></div>
           <div class="composer-actions">
             <label class="btn soft">
-              📷 選擇照片 (多張)
+              選擇照片
               <input id="post-files" type="file" accept="image/*" multiple hidden />
             </label>
-            <button class="btn primary" type="submit" id="post-submit">發布動態 ✨</button>
+            <button class="btn primary" type="submit" id="post-submit">發布動態</button>
           </div>
         </form>
 
@@ -103,26 +103,26 @@
       <aside id="rail-right" class="rail"></aside>
     </div>
     <section class="wall">
-      <h2>📸 我們的甜蜜照片牆</h2>
+      <h2>照片牆</h2>
       <div id="photo-wall" class="wall-grid"></div>
     </section>
   </section>
 
   <div id="album-modal" class="overlay" hidden>
     <div class="card modal-card" role="dialog" aria-modal="true">
-      <h2>🖼️ 我們的照片牆管理</h2>
+      <h2>照片牆管理</h2>
       <div class="tabs">
-        <button type="button" id="tab-upload" class="tab active">➕ 上傳新照片</button>
-        <button type="button" id="tab-history" class="tab">🖼️ 歷史相簿</button>
+        <button type="button" id="tab-upload" class="tab active">上傳新照片</button>
+        <button type="button" id="tab-history" class="tab">歷史相簿</button>
       </div>
       <div id="album-upload">
         <label class="btn soft wide">
-          ➕ 從本機相簿多選照片
+          從手機相簿選擇
           <input id="album-files" type="file" accept="image/*" multiple hidden />
         </label>
         <div id="album-preview" class="preview-row"></div>
-        <label>📝 統一文字說明
-          <input id="album-caption" placeholder="例如：陽明山約會特輯 ✨" />
+        <label>照片說明
+          <input id="album-caption" placeholder="例如：陽明山約會" />
         </label>
         <div class="row-actions">
           <button type="button" class="btn ghost" data-close="album-modal">關閉</button>
@@ -139,15 +139,15 @@
   <div id="settings-modal" class="overlay" hidden>
     <div class="card modal-card" role="dialog" aria-modal="true">
       <div class="modal-head">
-        <button type="button" class="btn soft tiny" data-close="settings-modal">‹ 返回</button>
-        <h2>✨ 我們的秘密設定 ✨</h2>
+        <button type="button" class="btn soft tiny" data-close="settings-modal">返回</button>
+        <h2>設定</h2>
       </div>
       <div class="setting-row">
         <button type="button" id="male-avatar-btn" class="avatar-btn">
           <img id="male-setting-avatar" alt="" />
           <span id="male-avatar-hint">更換</span>
         </button>
-        <label>🐻 男生暱稱
+        <label>男生暱稱
           <input id="male-name-input" />
         </label>
         <input id="male-avatar-file" type="file" accept="image/*" hidden />
@@ -157,34 +157,34 @@
           <img id="female-setting-avatar" alt="" />
           <span id="female-avatar-hint">更換</span>
         </button>
-        <label>🐰 女生暱稱
+        <label>女生暱稱
           <input id="female-name-input" />
         </label>
         <input id="female-avatar-file" type="file" accept="image/*" hidden />
       </div>
       <div class="row-actions">
-        <button type="button" id="save-settings" class="btn primary">儲存設定 💕</button>
-        <button type="button" id="logout" class="btn ghost">🚪 登出</button>
+        <button type="button" id="save-settings" class="btn primary">儲存設定</button>
+        <button type="button" id="logout" class="btn ghost">登出</button>
       </div>
     </div>
   </div>
 
   <div id="place-modal" class="overlay" hidden>
     <form id="place-form" class="card modal-card" role="dialog" aria-modal="true">
-      <h2 id="place-title">📍 新增足跡地點</h2>
+      <h2 id="place-title">新增地點</h2>
       <div class="category-row">
-        <button type="button" data-category="visited" class="cat active">✅ 已完成</button>
-        <button type="button" data-category="wish" class="cat">✨ 想去！</button>
+        <button type="button" data-category="visited" class="cat active">已去過</button>
+        <button type="button" data-category="wish" class="cat">想去</button>
       </div>
       <label>地點名稱
         <input id="place-name" placeholder="手動輸入，或直接點擊地圖" />
       </label>
       <div id="place-suggestions" class="suggestions"></div>
-      <label>🗓️ 打卡日期
+      <label>日期
         <input id="place-date" type="date" />
       </label>
       <label class="btn soft wide">
-        📁 從相簿選擇相片
+        選擇相片
         <input id="place-file" type="file" accept="image/*" hidden />
       </label>
       <img id="place-image" class="place-image" alt="" hidden />
@@ -199,7 +199,7 @@
   </div>
 
   <div id="lightbox" class="lightbox" hidden>
-    <button type="button" id="lightbox-close">✕ 關閉</button>
+    <button type="button" id="lightbox-close">關閉</button>
     <img id="lightbox-image" alt="" />
   </div>
 

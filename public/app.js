@@ -17,8 +17,8 @@ const state = {
   coupleId: null,
   posts: [],
   album: [
-    { id: '1', title: '🌸 淡水看夕陽', url: 'https://picsum.photos/300/400?random=1' },
-    { id: '2', title: '🎀 第一次約會', url: 'https://picsum.photos/300/400?random=2' },
+    { id: '1', title: '淡水看夕陽', url: 'https://picsum.photos/300/400?random=1' },
+    { id: '2', title: '第一次約會', url: 'https://picsum.photos/300/400?random=2' },
   ],
   places: [],
   filter: '全部',
@@ -103,7 +103,7 @@ function renderDays() {
   $('days-together').textContent = days;
   $('phone-days').textContent = days;
   const left = daysUntilAnniversary();
-  $('anniversary-note').textContent = left === 0 ? '🎉 今天是我們的紀念日' : `🗓️ 下一個紀念日還有 ${left} 天`;
+  $('anniversary-note').textContent = left === 0 ? '今天是我們的紀念日' : `下一個紀念日還有 ${left} 天`;
 }
 
 function renderIdentity() {
@@ -142,7 +142,7 @@ function renderPosts() {
     return true;
   });
   if (!posts.length) {
-    list.innerHTML = '<p class="empty">📷 目前還沒有動態唷，快發布第一篇吧！</p>';
+    list.innerHTML = '<p class="empty">目前還沒有動態，先寫下今天的事吧。</p>';
     return;
   }
   list.innerHTML = posts.map((post) => `
@@ -161,7 +161,7 @@ function renderPosts() {
 }
 
 function photoCard(photo) {
-  return `<article class="card photo-card"><img alt="" src="${escapeAttr(photo.url)}" data-preview="${escapeAttr(photo.url)}" /><p>${escapeHtml(photo.title || '甜蜜照片 💕')}</p></article>`;
+  return `<article class="card photo-card"><img alt="" src="${escapeAttr(photo.url)}" data-preview="${escapeAttr(photo.url)}" /><p>${escapeHtml(photo.title || '照片')}</p></article>`;
 }
 
 function renderPhotos() {
@@ -173,12 +173,12 @@ function renderPhotos() {
 }
 
 function renderAlbumHistory() {
-  $('tab-history').textContent = `🖼️ 歷史相簿 (${state.album.length})`;
+  $('tab-history').textContent = `歷史相簿 (${state.album.length})`;
   $('album-grid').innerHTML = state.album.map((photo) => `
     <article class="history-item">
       <img alt="" src="${escapeAttr(photo.url)}" data-preview="${escapeAttr(photo.url)}" />
       <p>${escapeHtml(photo.title || '')}</p>
-      ${photo.remote ? `<button type="button" data-delete-photo="${escapeAttr(photo.id)}">✕</button>` : ''}
+      ${photo.remote ? `<button type="button" data-delete-photo="${escapeAttr(photo.id)}">刪除</button>` : ''}
     </article>
   `).join('');
 }
@@ -187,7 +187,7 @@ function renderPlaces() {
   $('place-list').innerHTML = state.places.map((place) => `
     <article class="place-item">
       <div>
-        <strong>📍 ${escapeHtml(place.name)}</strong>
+        <strong>${escapeHtml(place.name)}</strong>
         <p>${escapeHtml(place.note || '')}${place.visitDate ? ` · ${escapeHtml(place.visitDate)}` : ''}</p>
       </div>
       <div class="place-actions">
@@ -246,7 +246,7 @@ function openPlaceModal(place = null) {
   state.placeCategory = place?.category || 'visited';
   state.placeImageUrl = place?.imageUrl || '';
   state.placeCoords = { lat: place?.lat, lng: place?.lng };
-  $('place-title').textContent = place?.id ? '✏️ 編輯足跡地點' : '📍 新增足跡地點';
+  $('place-title').textContent = place?.id ? '編輯地點' : '新增地點';
   $('place-name').value = place?.name || '';
   $('place-note').value = place?.note || '';
   $('place-date').value = toDateInput(place?.visitDate) || todayInputValue();
@@ -352,16 +352,26 @@ async function handleLogin(event) {
   const email = account.includes('@') ? account : `${account}@gmail.com`;
   const { data, error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) {
-    if (error.message.includes('rate limit')) return notify('請稍後再試 ⏳', '請求太頻繁，請等待約 10~15 分鐘冷卻後再試！');
-    return notify('登入失敗 ❌', '帳號或密碼錯誤，請確認後重試！');
+    if (error.message.includes('rate limit')) return notify('請稍後再試', '請求太頻繁，請等待約 10 到 15 分鐘後再試。');
+    return notify('登入失敗', '帳號或密碼錯誤，請確認後重試。');
   }
   const role = account.includes('olivia') ? '女方' : '男方';
-  await supabase.from('profiles').upsert({
-    id: data.user.id,
-    couple_id: DEFAULT_COUPLE_ID,
-    gender: role,
-    nickname: account,
-  });
+  const { data: existing } = await supabase.from('profiles').select('id').eq('id', data.user.id).maybeSingle();
+  if (!existing) {
+    const { error: insertError } = await supabase.from('profiles').insert({
+      id: data.user.id,
+      couple_id: DEFAULT_COUPLE_ID,
+      gender: role,
+      nickname: account,
+    });
+    if (insertError) notify('資料建立失敗', insertError.message);
+  } else {
+    const { error: profileError } = await supabase.from('profiles').update({
+      couple_id: DEFAULT_COUPLE_ID,
+      gender: role,
+    }).eq('id', data.user.id);
+    if (profileError) notify('資料更新失敗', profileError.message);
+  }
   state.currentUser = role;
   await enter(data.user);
 }
@@ -384,19 +394,19 @@ async function handleCreatePost(event) {
       content,
       image_urls: imageUrls,
     }]);
-    if (error) return notify('貼文發布失敗 ❌', error.message);
+    if (error) return notify('貼文發布失敗', error.message);
     $('post-content').value = '';
     state.postFiles = [];
     $('post-files').value = '';
     $('post-preview').innerHTML = '';
     await loadPosts();
-    if (imageUrls.length && window.confirm('貼文發布成功！要順便將這些照片同步加到「照片牆/相簿」嗎？')) {
-      await addAlbumRecords(content || '動態照片 💕', imageUrls);
+    if (imageUrls.length && window.confirm('貼文已發布。要把這些照片也放進相簿嗎？')) {
+      await addAlbumRecords(content || '動態照片', imageUrls);
     } else if (!imageUrls.length) {
-      notify('成功 ✨', '貼文發布成功！');
+      notify('已發布', '貼文已寫進資料庫。');
     }
   } catch (error) {
-    notify('錯誤 ⚠️', '發布過程中發生異常');
+    notify('發布失敗', '發布過程中發生異常');
     console.error(error);
   } finally {
     button.disabled = false;
@@ -406,8 +416,8 @@ async function handleCreatePost(event) {
 async function addAlbumRecords(title, urls) {
   const records = urls.map((url) => ({ couple_id: coupleId(), title, url }));
   const { error } = await supabase.from('album_photos').insert(records);
-  if (error) return notify('同步相簿失敗 ❌', error.message);
-  notify('成功 📸', '照片已同步加到照片牆囉！');
+  if (error) return notify('同步相簿失敗', error.message);
+  notify('已加入相簿', '照片已寫進相簿。');
   await loadAlbum();
 }
 
@@ -418,14 +428,14 @@ async function saveAlbum() {
   try {
     const urls = [];
     for (const file of state.albumFiles) urls.push(await uploadImage(file));
-    await addAlbumRecords($('album-caption').value.trim() || '甜蜜照片 💕', urls);
+    await addAlbumRecords($('album-caption').value.trim() || '照片', urls);
     state.albumFiles = [];
     $('album-files').value = '';
     $('album-caption').value = '';
     $('album-preview').innerHTML = '';
     closeModal('album-modal');
   } catch (error) {
-    notify('上傳失敗 ❌', '照片沒有上傳成功，請再試一次');
+    notify('上傳失敗', '照片沒有上傳成功，請再試一次');
     console.error(error);
   } finally {
     button.disabled = false;
@@ -435,11 +445,16 @@ async function saveAlbum() {
 async function saveSettings() {
   const nickname = state.currentUser === '男方' ? $('male-name-input').value.trim() : $('female-name-input').value.trim();
   const avatar = state.currentUser === '男方' ? state.maleAvatar : state.partnerAvatar;
-  const { error } = await supabase.from('profiles').update({ nickname, avatar_url: avatar }).eq('id', state.userId);
-  if (error) return notify('儲存失敗 ❌', error.message);
-  if (state.currentUser === '男方') state.maleName = nickname || state.maleName;
-  else state.partnerName = nickname || state.partnerName;
-  notify('成功 💕', '設定已同步儲存！');
+  const { data, error } = await supabase.from('profiles').update({ nickname, avatar_url: avatar }).eq('id', state.userId).select('nickname, avatar_url');
+  if (error || !data?.length) return notify('儲存失敗', error?.message || '設定沒有寫進資料庫，請重新登入後再試。');
+  if (state.currentUser === '男方') {
+    state.maleName = data[0].nickname || state.maleName;
+    if (data[0].avatar_url) state.maleAvatar = data[0].avatar_url;
+  } else {
+    state.partnerName = data[0].nickname || state.partnerName;
+    if (data[0].avatar_url) state.partnerAvatar = data[0].avatar_url;
+  }
+  notify('已儲存', '設定已寫進資料庫。');
   closeModal('settings-modal');
   renderIdentity();
   renderPosts();
@@ -469,13 +484,13 @@ async function savePlace(event) {
     const query = state.editingPlace?.id
       ? supabase.from('places').update(payload).eq('id', state.editingPlace.id)
       : supabase.from('places').insert({ ...payload, couple_id: coupleId(), created_by: state.currentUser === '男方' ? state.maleName : state.partnerName });
-    const { error } = await query;
-    if (error) return notify('儲存失敗 ❌', error.message);
+    const { data: saved, error } = await query.select('id');
+    if (error || !saved?.length) return notify('儲存失敗', error?.message || '地點沒有寫進資料庫。');
     closeModal('place-modal');
     $('place-file').value = '';
     await loadPlaces();
   } catch (error) {
-    notify('上傳失敗 ❌', '地點照片沒有上傳成功，請再試一次');
+    notify('上傳失敗', '地點照片沒有上傳成功，請再試一次');
     console.error(error);
   } finally {
     if (button) button.disabled = false;
@@ -483,14 +498,24 @@ async function savePlace(event) {
 }
 
 async function changeOwnAvatar(file, gender) {
-  if (state.currentUser !== gender) return notify('權限限制 🔒', `您目前是${state.currentUser}身份，無法直接修改${gender}的頭像唷！`);
+  if (state.currentUser !== gender) return notify('無法修改', `目前是${state.currentUser}，不能改${gender}的頭像。請用對方的帳號登入後再換。`);
+  if (!state.userId) return notify('尚未登入', '請先登入再更換頭像。');
+  const hint = $(gender === '男方' ? 'male-avatar-hint' : 'female-avatar-hint');
+  hint.textContent = '儲存中';
   try {
     const url = await uploadImage(file);
-    if (gender === '男方') state.maleAvatar = url;
-    else state.partnerAvatar = url;
+    const { data, error } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', state.userId).select('avatar_url');
+    if (error || !data?.length || !data[0].avatar_url) {
+      hint.textContent = '更換';
+      return notify('儲存失敗', error?.message || '頭像沒有寫進資料庫。');
+    }
+    if (gender === '男方') state.maleAvatar = data[0].avatar_url;
+    else state.partnerAvatar = data[0].avatar_url;
     renderIdentity();
+    notify('已儲存', '頭像已寫進資料庫。');
   } catch (error) {
-    notify('上傳失敗 ❌', '頭像沒有上傳成功');
+    hint.textContent = '更換';
+    notify('上傳失敗', '頭像沒有上傳成功');
     console.error(error);
   }
 }
@@ -556,11 +581,11 @@ function bindEvents() {
     previewFiles(state.albumFiles, $('album-preview'));
   });
   $('male-avatar-btn').addEventListener('click', () => {
-    if (state.currentUser !== '男方') return notify('權限限制 🔒', '您目前是女方身份，無法直接修改男方的頭像唷！');
+    if (state.currentUser !== '男方') return notify('無法修改', '請用男生帳號登入後再換男生頭像。');
     $('male-avatar-file').click();
   });
   $('female-avatar-btn').addEventListener('click', () => {
-    if (state.currentUser !== '女方') return notify('權限限制 🔒', '您目前是男方身份，無法直接修改女方的頭像唷！');
+    if (state.currentUser !== '女方') return notify('無法修改', '請用女生帳號登入後再換女生頭像。');
     $('female-avatar-file').click();
   });
   $('male-avatar-file').addEventListener('change', (event) => event.target.files[0] && changeOwnAvatar(event.target.files[0], '男方'));
@@ -622,12 +647,12 @@ function bindEvents() {
     if (close) closeModal(close.dataset.close);
     if (deletePhoto) {
       const { error } = await supabase.from('album_photos').delete().eq('id', deletePhoto.dataset.deletePhoto);
-      if (error) notify('刪除失敗 ❌', error.message);
+      if (error) notify('刪除失敗', error.message);
       else await loadAlbum();
     }
     if (deletePlace) {
       const { error } = await supabase.from('places').delete().eq('id', deletePlace.dataset.deletePlace);
-      if (error) notify('刪除失敗 ❌', error.message);
+      if (error) notify('刪除失敗', error.message);
       else await loadPlaces();
     }
     if (editPlace) openPlaceModal(state.places.find((place) => String(place.id) === editPlace.dataset.editPlace));
